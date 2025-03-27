@@ -18,8 +18,10 @@ import pytz
 
 app = Flask(__name__)
 
-# Imposta la chiave API di Gemini
-GENAI_API_KEY = "AIzaSyBdO5jVg1vi5MRGsGUfUO-g9sVlt8QTaM4"
+# Imposta la chiave API di Gemini da variabile d'ambiente
+GENAI_API_KEY = os.getenv('GEMINI_API_KEY')
+if not GENAI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable is not set")
 genai.configure(api_key=GENAI_API_KEY)
 
 # Contesto fisso per Gemini

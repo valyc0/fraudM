@@ -18,9 +18,15 @@ The FraudM project is designed to process and analyze data for fraud detection. 
 ### Key Components and Their Roles
 
 1. **CSV Generator**:
-   - Generates synthetic CSV files containing data for analysis.
+   - Generates synthetic CSV files containing data for analysis using Gemini AI.
    - Saves the files in a shared directory (`./data`) for further processing.
    - Exposed on port 5000 for interaction.
+   - Requires `GEMINI_API_KEY` environment variable to be set.
+
+   To run the service, replace the XXXXX placeholder in the `.env` file with your Gemini API key, then use:
+   ```bash
+   docker compose up
+   ```
 
    Example of generated CSV format:
    ```csv
