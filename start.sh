@@ -19,10 +19,11 @@ fi
 
 # Create necessary directories
 mkdir -p data
+mkdir -p data/done
 mkdir -p logstash/pipeline
 
 # Ensure correct permissions
-chmod 777 data
+chmod -R 777 data
 
 # Start the environment
 echo "Starting main services..."

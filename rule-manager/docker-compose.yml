@@ -20,7 +20,6 @@ services:
       - jobmanager
     networks:
       - fraud-network
-      - rules-network
     restart: on-failure
     healthcheck:
       test: ["CMD", "curl", "-u", "admin:admin", "-f", "http://opensearch:9200"]
@@ -30,10 +29,13 @@ services:
       start_period: 40s
 
   jobmanager:
-    image: apache/flink:2.0.0
+    image: apache/flink:1.18.1
     ports:
       - "8081:8081"
     command: jobmanager
+    volumes:
+      - ./lib:/opt/flink/lib/external
+      - ./sql-rules:/opt/flink/sql-rules
     environment:
       - |
         FLINK_PROPERTIES=
@@ -41,14 +43,18 @@ services:
         jobmanager.memory.process.size: 1600m
         jobmanager.memory.jvm.heap.size: 1024m
         python.executable: python3
+        classloader.resolve-order: parent-first
+        pipeline.classpaths: /opt/flink/lib/external/flink-sql-connector-kafka-1.15.0.jar;/opt/flink/lib/external/flink-sql-connector-elasticsearch7-1.15.0.jar
     networks:
-      - rules-network
+      - fraud-network
 
   taskmanager:
-    image: apache/flink:2.0.0
+    image: apache/flink:1.18.1
     depends_on:
       - jobmanager
     command: taskmanager
+    volumes:
+      - ./lib:/opt/flink/lib/external
     environment:
       - |
         FLINK_PROPERTIES=
@@ -58,8 +64,10 @@ services:
         taskmanager.numberOfTaskSlots: 2
         jobmanager.rpc.address: jobmanager
         python.executable: python3
+        classloader.resolve-order: parent-first
+        pipeline.classpaths: /opt/flink/lib/external/flink-sql-connector-kafka-1.15.0.jar;/opt/flink/lib/external/flink-sql-connector-elasticsearch7-1.15.0.jar
     networks:
-      - rules-network
+      - fraud-network
 
 networks:
   fraud-network:
