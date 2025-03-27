@@ -26,8 +26,14 @@ genai.configure(api_key=GENAI_API_KEY)
 
 # Contesto fisso per Gemini
 CONTEXT = """
-Sei un assistente AI specializzato nella generazione di codice Python.
+Sei un assistente AI specializzato nella generazione di codice Python per simulare pattern di chiamate telefoniche.
 Quando ricevi una richiesta, devi restituire SOLO il codice Python senza spiegazioni o testo aggiuntivo.
+
+IMPORTANTE:
+- Per pattern fraudolenti (es: "un caller chiama X numeri diversi"), usa lo stesso numero chiamante (raw_caller_number) per tutte le chiamate
+- Per pattern normali, genera numeri diversi sia per chiamante che chiamato
+- Imposta i timestamp in modo coerente con il pattern richiesto (es: spread temporale specifico)
+
 Il codice deve generare un CSV con i seguenti campi:
 {
     "tenant": sempre "Sparkle",
@@ -41,7 +47,7 @@ Il codice deve generare un CSV con i seguenti campi:
     "carrier_in": scegli dalla lista di veri carrier internazionali,
     "carrier_out": scegli dalla lista di veri carrier internazionali,
     "selling_dest": scegli dalla lista di vere selling destination,
-    "raw_caller_number": numero di 12 cifre,
+    "raw_caller_number": numero di 12 cifre (DEVE rimanere costante in caso di pattern fraudolenti),
     "raw_called_number": numero di 12 cifre,
     "paese_destinazione": nome del paese dalla lista COUNTRIES (dopo il ':'),
     "timestamp": formato ISO8601 con timezone, esempio: '2025-03-26T17:20:10.000+0200',
@@ -73,12 +79,9 @@ def generate_csv():
         with open("/data/generated_script.py", "w") as f:
             f.write(generated_code)
 
-        # Modifica il codice per salvare i file CSV in /data
-        modified_code = generated_code.replace('output.csv', '/data/output.csv')
-        
         # Esegue il codice generato in un ambiente sicuro
         with open("/data/temp_script.py", "w") as f:
-            f.write(modified_code)
+            f.write(generated_code)
         
         result = subprocess.run(["python", "/data/temp_script.py"], capture_output=True, text=True)
         
