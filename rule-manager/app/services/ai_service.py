@@ -42,7 +42,7 @@ class AIService:
             raise ValueError("GEMINI_API_KEY environment variable is not set")
         
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        self.model = genai.GenerativeModel('gemini-2.0-flash')
 
     async def generate_scala_code(self, description: str) -> str:
         """
