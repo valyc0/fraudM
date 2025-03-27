@@ -2,13 +2,21 @@
 
 ```mermaid
 graph TD
-    A[CSV Generator] --> B[Logstash CSV to Kafka]
-    B --> C[Kafka]
-    C --> D[Logstash Kafka to OpenSearch]
-    D --> E[OpenSearch]
-    E --> F[OpenSearch Dashboards]
-    C --> G[Kafka UI]
-    E --> H[Grafana]
+    subgraph Data Flow
+        A[CSV Generator] --> B[Logstash CSV to Kafka]
+        B --> C[Kafka]
+        C --> D[Logstash Kafka to OpenSearch]
+        D --> E[OpenSearch]
+        E --> F[OpenSearch Dashboards]
+        C --> G[Kafka UI]
+        E --> H[Grafana]
+    end
+
+    subgraph Rule Engine
+        C --> I[Rule Manager]
+        I --> J[Rule Execution Engine]
+        J --> E
+    end
 ```
 
 ## Overview
@@ -47,34 +55,46 @@ The FraudM project is designed to process and analyze data for fraud detection. 
    Sparkle,9.21,2114,9.21,JP,Rome,Voice,,Telefonica,Orange,Rome,722318916061,698101980017,Japan,2025-03-27T12:27:08.928571+02:00,a1f880f5-7557-40b0-9495-c37da00e222e
    ```
 
-2. **Zookeeper**:
+2. **Rule Engine Components**:
+   - **Rule Manager**:
+     - Manages and executes fraud detection rules through an API.
+     - Consumes data from Kafka for real-time analysis.
+     - Uses AI to assist in rule generation and management.
+     - Exposes APIs for rule creation and management.
+     - Available on port 8000.
+   - **Rule Execution Engine**:
+     - Processes rules against data streams from Kafka in real-time.
+     - Evaluates conditions and triggers actions based on rule definitions.
+     - Writes results to OpenSearch for monitoring and alerting.
+
+3. **Zookeeper**:
    - Coordinates and manages the Kafka cluster.
    - Ensures proper synchronization between Kafka brokers.
    - Exposed on port 2181.
 
-3. **Kafka**:
+4. **Kafka**:
    - Acts as a message broker to handle data streams.
    - Receives data from Logstash and distributes it to other components.
    - Exposed on ports 9092 (host) and 29092 (internal).
 
-4. **Kafka UI**:
+5. **Kafka UI**:
    - Provides a web-based interface to monitor and manage Kafka topics and messages.
    - Exposed on port 8080 for easy access.
 
-5. **Logstash Pipelines**:
+6. **Logstash Pipelines**:
    - **CSV to Kafka**: Reads CSV files from the shared directory and sends the data to Kafka topics.
    - **Kafka to OpenSearch**: Consumes data from Kafka topics and sends it to OpenSearch for indexing and analysis.
 
-6. **OpenSearch**:
+7. **OpenSearch**:
    - A search and analytics engine used to store and analyze data.
    - Provides APIs for querying and retrieving data.
    - Exposed on ports 9200 (API) and 9600 (monitoring).
 
-7. **OpenSearch Dashboards**:
+8. **OpenSearch Dashboards**:
    - A visualization tool for creating dashboards and analyzing data stored in OpenSearch.
    - Exposed on port 5601 for user interaction.
 
-8. **Grafana**:
+9. **Grafana**:
    - A monitoring and analytics platform used to create advanced visualizations and dashboards.
    - Connects to OpenSearch to display real-time metrics and insights.
    - Exposed on port 3000.
@@ -85,5 +105,34 @@ The FraudM project is designed to process and analyze data for fraud detection. 
 - **Volumes**:
   - `opensearch-data`: Persistent storage for OpenSearch to retain indexed data.
   - `data`: Shared directory for CSV files and other intermediate data.
+
+## Getting Started
+
+To start the entire FraudM system:
+
+1. First, ensure you have the required environment variables set:
+   ```bash
+   cd fraudM/rule-manager
+   cp .env.example .env
+   # Edit .env and set your GEMINI_API_KEY
+   ```
+
+2. Start all services:
+   ```bash
+   cd fraudM
+   ./start.sh
+   ```
+
+The start script will launch all components in the correct order. Once started, you can access:
+
+- Rule Manager API: http://localhost:8000
+- Kafka UI: http://localhost:8080
+- OpenSearch Dashboards: http://localhost:5601
+- Grafana: http://localhost:3000
+
+To clean up and stop all services:
+```bash
+./cleanup.sh
+```
 
 This architecture enables efficient data processing and visualization, making it suitable for fraud detection and monitoring use cases.
