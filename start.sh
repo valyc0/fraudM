@@ -1,11 +1,25 @@
 #!/bin/bash
 
+# Check for build parameter
+BUILD_FLAG=""
+if [ "$1" = "build" ]; then
+    echo "Force rebuilding containers..."
+    BUILD_FLAG="--build"
+    # Stop and remove existing containers and volumes
+    docker-compose down -v
+    # Clean up data directory
+    rm -rf data/*
+fi
+
 # Create necessary directories
 mkdir -p data
 mkdir -p logstash/pipeline
 
+# Ensure correct permissions
+chmod 777 data
+
 # Start the environment
-docker-compose up -d
+docker-compose up -d $BUILD_FLAG
 
 echo "Waiting for services to start..."
 sleep 30

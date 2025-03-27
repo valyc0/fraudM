@@ -12,6 +12,9 @@ from flask import Flask, request, jsonify
 import google.generativeai as genai
 import os
 import subprocess
+import random
+import datetime
+import pytz
 
 app = Flask(__name__)
 
@@ -19,12 +22,47 @@ app = Flask(__name__)
 GENAI_API_KEY = "AIzaSyBdO5jVg1vi5MRGsGUfUO-g9sVlt8QTaM4"
 genai.configure(api_key=GENAI_API_KEY)
 
+# Liste di valori validi
+CARRIERS = """
+AT&T,Verizon,TIM,Vodafone,Orange,Deutsche Telekom,Telefonica,China Mobile,
+NTT DoCoMo,SingTel,Telstra,Airtel,MTN,Etisalat,America Movil,UAE,
+Saudi Telecom,Turkcell,MTS,Telenor,SK Telecom,KDDI,Globe,Telkomsel
+""".strip().split(',')
+
+DESTINATIONS = """
+UAE,USA,ITA,GBR,FRA,DEU,ESP,CHN,JPN,SGP,AUS,IND,ZAF,ARE,MEX,SAU,TUR,RUS,NOR,KOR,JPN,PHL,IDN,
+THURAYA-Reg,Inmarsat,GlobalStar,Iridium
+""".strip().split(',')
+
+COUNTRIES = """
+001:USA,039:ITA,044:GBR,033:FRA,049:DEU,034:ESP,086:CHN,081:JPN,065:SGP,061:AUS,091:IND,
+027:ZAF,971:ARE,052:MEX,966:SAU,090:TUR,007:RUS,047:NOR,082:KOR,081:JPN,063:PHL,062:IDN,
+882:THURAYA,881:Inmarsat
+""".strip().split(',')
+
 # Contesto fisso per Gemini
 CONTEXT = """
 Sei un assistente AI specializzato nella generazione di codice Python.
 Quando ricevi una richiesta, devi restituire SOLO il codice Python senza spiegazioni o testo aggiuntivo.
-Il codice deve generare un CSV contenente tre colonne: `caller`, `called` e `timestamp`.
-Il timestamp deve essere nel formato ISO8601 con timezone, esempio: '2025-03-26T17:20:10.000Z'
+Il codice deve generare un CSV con i seguenti campi:
+{
+    "tenant": sempre "Sparkle",
+    "val_euro": numero decimale random tra 0.1 e 10.0,
+    "duration": numero intero random in secondi tra 1 e 3600,
+    "economicUnitValue": uguale a val_euro,
+    "other_party_country": codice paese valido dalla lista COUNTRIES (prima del ':'),
+    "routing_dest": uguale a selling_dest,
+    "service_type__desc": sempre "Voice",
+    "op35": sempre null,
+    "carrier_in": scegli dalla lista di veri carrier internazionali,
+    "carrier_out": scegli dalla lista di veri carrier internazionali,
+    "selling_dest": scegli dalla lista di vere selling destination,
+    "raw_caller_number": numero di 12 cifre,
+    "raw_called_number": numero di 12 cifre,
+    "paese_destinazione": nome del paese dalla lista COUNTRIES (dopo il ':'),
+    "timestamp": formato ISO8601 con timezone, esempio: '2025-03-26T17:20:10.000+0200',
+    "xdrid": randomico univoco del cartellino'
+}
 
 La funzione generata deve rispettare la richiesta dell'utente e salvare i dati in un file dentro la directory /data.
 Il percorso completo del file deve essere `/data/output.csv` o `/data/outputYYYYMMDDHHMMSS.csv`.

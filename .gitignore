@@ -1,0 +1,13 @@
+# Generated CSV files
+data/*.csv
+
+# Generated scripts
+data/generated_script.py
+data/temp_script.py
+
+# Processed files directory
+data/done/
+
+# Python cache
+__pycache__/
+*.pyc
