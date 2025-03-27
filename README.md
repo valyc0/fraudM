@@ -22,6 +22,13 @@ The FraudM project is designed to process and analyze data for fraud detection. 
    - Saves the files in a shared directory (`./data`) for further processing.
    - Exposed on port 5000 for interaction.
 
+   Example of generated CSV format:
+   ```csv
+   tenant,val_euro,duration,economicUnitValue,other_party_country,routing_dest,service_type__desc,op35,carrier_in,carrier_out,selling_dest,raw_caller_number,raw_called_number,paese_destinazione,timestamp,xdrid
+   Sparkle,6.54,2095,6.54,RU,Rome,Voice,,Orange,Bharti Airtel,Rome,101207102360,339576800213,Russia,2025-03-27T12:27:08.928474+02:00,2858d970-7f42-4625-85e7-1413eec1d016
+   Sparkle,9.21,2114,9.21,JP,Rome,Voice,,Telefonica,Orange,Rome,722318916061,698101980017,Japan,2025-03-27T12:27:08.928571+02:00,a1f880f5-7557-40b0-9495-c37da00e222e
+   ```
+
 2. **Zookeeper**:
    - Coordinates and manages the Kafka cluster.
    - Ensures proper synchronization between Kafka brokers.
