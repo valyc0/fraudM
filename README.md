@@ -2,9 +2,9 @@
 
 ```mermaid
 graph TD
-    A[CSV Generator] --> B[Logstash (CSV to Kafka)]
+    A[CSV Generator] --> B[Logstash CSV to Kafka]
     B --> C[Kafka]
-    C --> D[Logstash (Kafka to OpenSearch)]
+    C --> D[Logstash Kafka to OpenSearch]
     D --> E[OpenSearch]
     E --> F[OpenSearch Dashboards]
     C --> G[Kafka UI]
