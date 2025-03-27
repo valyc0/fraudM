@@ -6,6 +6,7 @@ from datetime import datetime
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import time
+import shutil
 
 # Configurazione directory log
 LOG_DIR = '/app/logs'
@@ -38,7 +39,10 @@ logger.addHandler(console_handler)
 
 logger.info(f"Logging configurato con rotazione ogni {LOG_ROTATION_DAYS} giorni in {LOG_DIR}")
 
-# Contesto fisso per Gemini
+# Template files
+TEMPLATE_DIR = "app/templates"
+KAFKA_TEMPLATE = os.path.join(TEMPLATE_DIR, "KafkaInput.scala")
+OPENSEARCH_TEMPLATE = os.path.join(TEMPLATE_DIR, "OpenSearchOutput.scala")
 SCALA_CONTEXT = """
 Sei un esperto di Apache Flink e Scala specializzato nella generazione di codice per il rilevamento frodi in tempo reale.
 Quando ricevi una richiesta, devi restituire SOLO il codice Scala senza spiegazioni o testo aggiuntivo.
@@ -48,25 +52,17 @@ OBBLIGATORI i seguenti import:
 ```scala
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.streaming.connectors.kafka._
-import org.apache.flink.api.common.serialization.SimpleStringSchema
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
 import org.apache.flink.api.common.functions.AggregateFunction
-import org.opensearch.client.{RestClient, RestHighLevelClient}
-import org.opensearch.client.indices.CreateIndexRequest
-import org.opensearch.action.index.IndexRequest
-import org.opensearch.common.xcontent.XContentType
-import org.apache.http.HttpHost
-import org.apache.http.auth.{AuthScope, UsernamePasswordCredentials}
-import org.apache.http.impl.client.BasicCredentialsProvider
-```
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.io.Serializable
 
-Il codice deve:
-1. Leggere da un topic Kafka 'input-topic' (verrà sostituito dopo)
-2. Usare un Kafka bootstrap server 'localhost:9092' (verrà sostituito dopo)
-3. Usare un OpenSearch host 'localhost' e porta 9200 (verranno sostituiti dopo)
-4. Usare credenziali OpenSearch temporanee 'user'/'pass' (verranno sostituite dopo)
+// Import delle classi di input/output predefinite
+import KafkaInput
+import OpenSearchOutput
+```
 
 I record sono in formato JSON con i seguenti campi:
 * timestamp: ISO8601 con timezone
@@ -82,14 +78,22 @@ I record sono in formato JSON con i seguenti campi:
 
 STRUTTURA OBBLIGATORIA:
 1. La classe deve chiamarsi 'Rule' ed estendere Serializable
-2. Deve avere un metodo 'createStream' che configura la sorgente Kafka
-3. Deve avere un metodo 'execute' che implementa la logica e scrive su OpenSearch
-4. Deve usare una finestra temporale di 2 minuti (TumblingProcessingTimeWindows)
-5. Deve scrivere i risultati su OpenSearch nell'indice 'output-index'
-6. Deve includere commenti esplicativi nei punti chiave
-7. Deve gestire gli errori in modo robusto
+2. Deve implementare la logica di business nel metodo 'execute'
+3. Deve usare una finestra temporale di 2 minuti (TumblingProcessingTimeWindows)
+4. Deve gestire gli errori in modo robusto
 
-NOTA: Tutti i valori di configurazione (host, porte, topics, credenziali) verranno sostituiti dopo con i valori corretti.
+UTILIZZO DELLE CLASSI PREDEFINITE:
+1. Per ottenere lo stream da Kafka:
+   ```scala
+   val kafkaInput = new KafkaInput()
+   val stream = kafkaInput.createStream(env)
+   ```
+
+2. Per inviare gli alert a OpenSearch:
+   ```scala
+   alerts.addSink(new OpenSearchOutput())
+   ```
+
 Rispondi solo con il codice Scala, senza testo aggiuntivo.
 """
 
@@ -126,10 +130,6 @@ class AIService:
             self._validate_generated_code(scala_code)
             logger.info("Validazione del codice completata con successo")
             
-            # Sostituisci i placeholder con i valori reali
-            scala_code = self._replace_config_values(scala_code)
-            logger.info("Codice Scala finale dopo le sostituzioni:\n" + scala_code)
-            
             # Salva il codice generato
             self._save_generated_code(scala_code, description)
             
@@ -141,42 +141,18 @@ class AIService:
             logger.error(f"Errore durante la generazione del codice Scala: {str(e)}", exc_info=True)
             raise
 
-    def _replace_config_values(self, code: str) -> str:
-        """Sostituisce i placeholder con i valori di configurazione reali"""
-        try:
-            replacements = {
-                'localhost:9092': os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:29092'),
-                'input-topic': os.getenv('KAFKA_INPUT_TOPIC', 'call-data-raw'),
-                'output-index': os.getenv('KAFKA_OUTPUT_TOPIC', 'fraud-alerts'),
-                'localhost': os.getenv('OPENSEARCH_HOST', 'opensearch'),
-                '9200': os.getenv('OPENSEARCH_PORT', '9200'),
-                'user': os.getenv('OPENSEARCH_USER', 'admin'),
-                'pass': os.getenv('OPENSEARCH_PASSWORD', 'admin')
-            }
-            
-            logger.info("Iniziata sostituzione dei placeholder")
-            for old_value, new_value in replacements.items():
-                code = code.replace(old_value, new_value)
-                logger.info(f"Sostituito '{old_value}' con '{new_value}'")
-                
-            return code
-        except Exception as e:
-            logger.error(f"Errore durante la sostituzione dei valori: {str(e)}", exc_info=True)
-            raise
-
     def _validate_generated_code(self, code: str):
         """Validazione base del codice generato"""
         try:
             required_elements = [
                 "import org.apache.flink",
                 "import org.apache.flink.streaming",
-                "import org.opensearch",
-                "class",
-                "createStream",
+                "import KafkaInput",
+                "import OpenSearchOutput",
+                "class Rule",
                 "execute",
-                "localhost:9092",  # placeholder da sostituire
-                "localhost",       # placeholder da sostituire
-                "input-topic"      # placeholder da sostituire
+                "createStream",
+                "addSink"
             ]
             
             logger.info("Inizio validazione del codice generato")
@@ -200,30 +176,33 @@ class AIService:
             raise
 
     def _save_generated_code(self, code: str, description: str):
-        """Save generated code with class name"""
+        """Save generated code and copy template files to a new dated directory"""
         try:
-            # Crea directory per il codice Scala
-            scala_dir = "app/scala"
+            # Crea directory con data per il codice Scala
+            now = datetime.now()
+            scala_dir = f"app/scala/{now.strftime('%Y%m%d_%H%M%S')}"
             os.makedirs(scala_dir, exist_ok=True)
-            logger.info(f"Directory {scala_dir} creata/verificata")
+            logger.info(f"Directory {scala_dir} creata")
+            
+            # Copia i file template
+            shutil.copy2(KAFKA_TEMPLATE, os.path.join(scala_dir, "KafkaInput.scala"))
+            shutil.copy2(OPENSEARCH_TEMPLATE, os.path.join(scala_dir, "OpenSearchOutput.scala"))
+            logger.info("File template copiati nella nuova directory")
             
             # Estrai nome classe dalla descrizione
             class_name = "".join(word.capitalize() for word in description.split()[:4])
             class_name = f"Rule{class_name}"
-            
-            # Rimuovi caratteri non validi per nome file/classe
             class_name = "".join(c for c in class_name if c.isalnum())
             logger.info(f"Nome classe generato: {class_name}")
             
-            # Salva il file con nome classe
-            filename = f"{scala_dir}/{class_name}.scala"
-            
-            with open(filename, "w") as f:
-                f.write(f"// Rule ID: Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            # Salva il file della regola
+            rule_file = os.path.join(scala_dir, f"{class_name}.scala")
+            with open(rule_file, "w") as f:
+                f.write(f"// Rule ID: Generated at {now.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"// Description: {description}\n\n")
                 f.write(code)
-                
-            logger.info(f"Codice Scala salvato in: {filename}")
+            
+            logger.info(f"Codice Scala salvato in: {rule_file}")
             
         except Exception as e:
             logger.error(f"Errore durante il salvataggio del codice: {str(e)}", exc_info=True)
