@@ -128,7 +128,7 @@ services:
 
 networks:
   fraud-network:
-    driver: bridge
+    external: true
 
 volumes:
   opensearch-data:

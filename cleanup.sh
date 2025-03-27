@@ -1,16 +1,15 @@
 #!/bin/bash
 
-# Check if "all" parameter is provided
-if [ "$1" = "all" ]; then
-    echo "Cleaning up all containers, volumes, networks, and CSV files..."
-    # Remove all CSV files from data directory with sudo
-    sudo rm -f data/*.csv
-    sudo rm -f data/generated_script.py data/temp_script.py
-    echo "CSV files cleaned up!"
-else
-    echo "Cleaning up all containers, volumes, and networks..."
-fi
+echo "Stopping main services..."
+docker-compose down
 
-docker-compose down --volumes --remove-orphans
+# Non rimuoviamo automaticamente la rete fraud-network perché potrebbe essere in uso dal rule-manager
+echo "Note: fraud-network will not be removed if Rule Manager is running"
+echo "To manually remove the network: docker network rm fraud-network"
 
-echo "Cleanup complete!"
+echo "Cleaning up data directory..."
+rm -rf data/*
+
+echo "Main environment cleanup complete!"
+echo "To clean up Rule Manager services, run:"
+echo "cd rule-manager && ./cleanup.sh"
