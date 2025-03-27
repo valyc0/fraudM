@@ -28,6 +28,18 @@ The FraudM project is designed to process and analyze data for fraud detection. 
    docker compose up
    ```
 
+   For testing rule generation without starting the full stack, use the provided test script:
+   ```bash
+   cd simulatore-python
+   ./test-rules.sh
+   ```
+   This will start a temporary container with just the CSV generator service.
+   You can then test rules using curl, for example:
+   ```bash
+   curl -X POST http://localhost:5000/generate_csv -H "Content-Type: application/json" \
+   -d '{"rule": "Genera un CSV in cui un caller chiama 20 numeri diversi nell arco di 2 minuti."}'
+   ```
+
    Example of generated CSV format:
    ```csv
    tenant,val_euro,duration,economicUnitValue,other_party_country,routing_dest,service_type__desc,op35,carrier_in,carrier_out,selling_dest,raw_caller_number,raw_called_number,paese_destinazione,timestamp,xdrid
