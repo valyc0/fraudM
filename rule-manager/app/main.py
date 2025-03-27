@@ -67,7 +67,7 @@ async def create_rule(rule_create: RuleCreate, services: Dict = Depends(get_serv
         logger.info(f"Creating new rule with description: {rule_create.description}")
         
         # Generate Scala code using AI
-        scala_code = await services["ai"].generate_scala_code(rule_create.description)
+        scala_code = services["ai"].generate_scala_code(rule_create.description)
         
         # Create rule document
         rule = Rule(

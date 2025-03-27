@@ -2,6 +2,7 @@ import os
 import google.generativeai as genai
 from typing import Dict, Any
 import json
+from datetime import datetime
 
 # Contesto fisso per Gemini
 SCALA_CONTEXT = """
@@ -44,7 +45,7 @@ class AIService:
         genai.configure(api_key=self.api_key)
         self.model = genai.GenerativeModel('gemini-2.0-flash')
 
-    async def generate_scala_code(self, description: str) -> str:
+    def generate_scala_code(self, description: str) -> str:
         """
         Generate Scala code for Flink from natural language description
         """
@@ -53,7 +54,7 @@ class AIService:
             prompt = f"{SCALA_CONTEXT}\n\nRichiesta: {description}"
             
             # Genera il codice usando Gemini
-            response = await self.model.generate_content_async(prompt)
+            response = self.model.generate_content(prompt)
             
             # Estrai e formatta il codice
             scala_code = response.text.strip()
@@ -115,20 +116,31 @@ class AIService:
         return code.strip()
 
     def _save_generated_code(self, code: str, description: str):
-        """Save generated code for debugging purposes"""
+        """Save generated code with class name"""
         try:
-            debug_dir = "/tmp/rule-manager/debug"
-            os.makedirs(debug_dir, exist_ok=True)
+            # Crea directory per il codice Scala
+            scala_dir = "app/scala"
+            os.makedirs(scala_dir, exist_ok=True)
             
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{debug_dir}/generated_code_{timestamp}.scala"
+            # Estrai nome classe dalla descrizione
+            class_name = "".join(word.capitalize() for word in description.split()[:4])
+            class_name = f"Rule{class_name}"
+            
+            # Rimuovi caratteri non validi per nome file/classe
+            class_name = "".join(c for c in class_name if c.isalnum())
+            
+            # Salva il file con nome classe
+            filename = f"{scala_dir}/{class_name}.scala"
             
             with open(filename, "w") as f:
+                f.write(f"// Rule ID: Generated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"// Description: {description}\n\n")
                 f.write(code)
-        except Exception:
-            # Silently fail as this is just for debugging
-            pass
+                
+            print(f"Scala code saved to: {filename}")
+            
+        except Exception as e:
+            print(f"Error saving Scala code: {str(e)}")
 
     def _format_scala_code(self, code: str) -> str:
         """
