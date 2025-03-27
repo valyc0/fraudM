@@ -3,6 +3,12 @@
 # Ensure the script stops on first error
 set -e
 
+# Create data directory if it doesn't exist
+mkdir -p "../data"
+
+# Remove existing container if it exists
+docker rm -f csv-generator-test 2>/dev/null || true
+
 # Build the image if needed
 docker build -t csv-generator-test .
 
