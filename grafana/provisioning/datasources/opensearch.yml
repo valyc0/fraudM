@@ -2,14 +2,23 @@ apiVersion: 1
 
 datasources:
   - name: OpenSearch
-    type: elasticsearch
+    type: grafana-opensearch-datasource
     access: proxy
     url: http://opensearch:9200
+    isDefault: true
+    basicAuth: true
+    basicAuthUser: "admin"
+    secureJsonData:
+      basicAuthPassword: "admin"
     jsonData:
-      database: "[calls-]YYYY.MM.DD"
-      timeField: "@timestamp"
-      version: "8.0.0"
+      database: "calls-*"
+      flavor: "opensearch"
+      logLevelField: ""
+      logMessageField: ""
       maxConcurrentShardRequests: 5
-      timeInterval: "10s"
-      logMessageField: "message"
-      logLevelField: "level"
+      pplEnabled: true
+      timeField: "@timestamp"
+      version: "2.11.1"
+      versionLabel: "OpenSearch 2.11.1"
+      timeInterval: "1m"
+      timezone: "Europe/Rome"
