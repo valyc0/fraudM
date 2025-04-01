@@ -35,6 +35,9 @@ sleep 30
 echo "Creating Kafka topic with 30 days retention..."
 docker-compose exec kafka kafka-topics --create --topic call-data-raw --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --config retention.ms=2592000000
 
+docker-compose exec kafka kafka-topics --create --topic call-alerts --bootstrap-server kafka:29092 --partitions 1 --replication-factor 1 --config retention.ms=2592000000
+
+
 echo "Main environment is ready!"
 echo "Access points:"
 echo "- Flask API: http://localhost:5000"

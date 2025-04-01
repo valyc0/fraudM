@@ -29,13 +29,14 @@ services:
       start_period: 40s
 
   jobmanager:
-    image: apache/flink:1.18.1
+    image: apache/flink:2.0.0
     ports:
       - "8081:8081"
     command: jobmanager
     volumes:
-      - ./lib:/opt/flink/lib/external
       - ./sql-rules:/opt/flink/sql-rules
+      - ./lib/flink-sql-connector-kafka-4.0-SNAPSHOT.jar:/opt/flink/lib/flink-sql-connector-kafka-4.0-SNAPSHOT.jar
+      - ./lib/flink-sql-connector-opensearch2-2.0-SNAPSHOT.jar:/opt/flink/lib/flink-sql-connector-opensearch2-2.0-SNAPSHOT.jar
     environment:
       - |
         FLINK_PROPERTIES=
@@ -43,18 +44,17 @@ services:
         jobmanager.memory.process.size: 1600m
         jobmanager.memory.jvm.heap.size: 1024m
         python.executable: python3
-        classloader.resolve-order: parent-first
-        pipeline.classpaths: /opt/flink/lib/external/flink-sql-connector-kafka-1.15.0.jar;/opt/flink/lib/external/flink-sql-connector-elasticsearch7-1.15.0.jar
     networks:
       - fraud-network
 
   taskmanager:
-    image: apache/flink:1.18.1
+    image: apache/flink:2.0.0
     depends_on:
       - jobmanager
     command: taskmanager
     volumes:
-      - ./lib:/opt/flink/lib/external
+      - ./lib/flink-sql-connector-kafka-4.0-SNAPSHOT.jar:/opt/flink/lib/flink-sql-connector-kafka-4.0-SNAPSHOT.jar
+      - ./lib/flink-sql-connector-opensearch2-2.0-SNAPSHOT.jar:/opt/flink/lib/flink-sql-connector-opensearch2-2.0-SNAPSHOT.jar
     environment:
       - |
         FLINK_PROPERTIES=
@@ -64,8 +64,6 @@ services:
         taskmanager.numberOfTaskSlots: 2
         jobmanager.rpc.address: jobmanager
         python.executable: python3
-        classloader.resolve-order: parent-first
-        pipeline.classpaths: /opt/flink/lib/external/flink-sql-connector-kafka-1.15.0.jar;/opt/flink/lib/external/flink-sql-connector-elasticsearch7-1.15.0.jar
     networks:
       - fraud-network
 
