@@ -9,13 +9,12 @@ graph TD
         D --> E[OpenSearch]
         E --> F[OpenSearch Dashboards]
         C --> G[Kafka UI]
-        E --> H[Grafana]
-    end
-
-    subgraph Rule Engine
-        C --> I[Rule Manager]
-        I --> J[Rule Execution Engine]
-        J --> E
+        
+        C --> H[Rule Engine]
+        H --> I[Kafka Alerts Topic]
+        I --> J[Logstash Kafka to PostgreSQL]
+        J --> K[PostgreSQL]
+        K --> L[Grafana]
     end
 ```
 
@@ -36,25 +35,6 @@ The FraudM project is designed to process and analyze data for fraud detection. 
    docker compose up
    ```
 
-   For testing rule generation without starting the full stack, use the provided test script:
-   ```bash
-   cd simulatore-python
-   ./test-rules.sh
-   ```
-   This will start a temporary container with just the CSV generator service.
-   You can then test rules using curl, for example:
-   ```bash
-   curl -X POST http://localhost:5000/generate_csv -H "Content-Type: application/json" \
-   -d '{"rule": "Genera un CSV in cui un caller chiama 20 numeri diversi nell arco di 2 minuti."}'
-   ```
-
-   Example of generated CSV format:
-   ```csv
-   tenant,val_euro,duration,economicUnitValue,other_party_country,routing_dest,service_type__desc,op35,carrier_in,carrier_out,selling_dest,raw_caller_number,raw_called_number,paese_destinazione,timestamp,xdrid
-   Sparkle,6.54,2095,6.54,RU,Rome,Voice,,Orange,Bharti Airtel,Rome,101207102360,339576800213,Russia,2025-03-27T12:27:08.928474+02:00,2858d970-7f42-4625-85e7-1413eec1d016
-   Sparkle,9.21,2114,9.21,JP,Rome,Voice,,Telefonica,Orange,Rome,722318916061,698101980017,Japan,2025-03-27T12:27:08.928571+02:00,a1f880f5-7557-40b0-9495-c37da00e222e
-   ```
-
 2. **Rule Engine Components**:
    - **Rule Manager**:
      - Manages and executes fraud detection rules through an API.
@@ -65,7 +45,7 @@ The FraudM project is designed to process and analyze data for fraud detection. 
    - **Rule Execution Engine**:
      - Processes rules against data streams from Kafka in real-time.
      - Evaluates conditions and triggers actions based on rule definitions.
-     - Writes results to OpenSearch for monitoring and alerting.
+     - Writes alert results to a dedicated Kafka topic for PostgreSQL storage.
 
 3. **Zookeeper**:
    - Coordinates and manages the Kafka cluster.
@@ -75,6 +55,7 @@ The FraudM project is designed to process and analyze data for fraud detection. 
 4. **Kafka**:
    - Acts as a message broker to handle data streams.
    - Receives data from Logstash and distributes it to other components.
+   - Contains separate topics for raw data and processed alerts.
    - Exposed on ports 9092 (host) and 29092 (internal).
 
 5. **Kafka UI**:
@@ -84,20 +65,45 @@ The FraudM project is designed to process and analyze data for fraud detection. 
 6. **Logstash Pipelines**:
    - **CSV to Kafka**: Reads CSV files from the shared directory and sends the data to Kafka topics.
    - **Kafka to OpenSearch**: Consumes data from Kafka topics and sends it to OpenSearch for indexing and analysis.
+   - **Kafka to PostgreSQL**: Consumes alert data from Kafka and stores it in PostgreSQL for real-time monitoring.
 
-7. **OpenSearch**:
+7. **PostgreSQL**:
+   - Stores call alert data for real-time monitoring and analysis.
+   - Contains the `call_alerts` table with detailed call information.
+   - Exposed on port 5432.
+   - Includes utility scripts for monitoring (see below).
+
+8. **OpenSearch**:
    - A search and analytics engine used to store and analyze data.
    - Provides APIs for querying and retrieving data.
    - Exposed on ports 9200 (API) and 9600 (monitoring).
 
-8. **OpenSearch Dashboards**:
+9. **OpenSearch Dashboards**:
    - A visualization tool for creating dashboards and analyzing data stored in OpenSearch.
    - Exposed on port 5601 for user interaction.
 
-9. **Grafana**:
-   - A monitoring and analytics platform used to create advanced visualizations and dashboards.
-   - Connects to OpenSearch to display real-time metrics and insights.
-   - Exposed on port 3000.
+10. **Grafana**:
+    - A monitoring and analytics platform used to create advanced visualizations and dashboards.
+    - Connects to PostgreSQL to display real-time call alert metrics and insights.
+    - Includes pre-configured dashboard for call alerts monitoring.
+    - Exposed on port 3000.
+
+### Utility Scripts
+
+- **count_call_alerts.sh**: Quickly check the number of call alerts in PostgreSQL
+  ```bash
+  ./script-util/count_call_alerts.sh
+  ```
+
+### Monitoring Dashboards
+
+1. **Call Alerts Dashboard**:
+   - Shows real-time call alert data from PostgreSQL
+   - Accessible in Grafana at http://localhost:3000
+   - Displays:
+     - Recent call alerts
+     - Call statistics
+     - Alert patterns
 
 ### Network and Volumes
 
@@ -105,6 +111,7 @@ The FraudM project is designed to process and analyze data for fraud detection. 
 - **Volumes**:
   - `opensearch-data`: Persistent storage for OpenSearch to retain indexed data.
   - `data`: Shared directory for CSV files and other intermediate data.
+  - `postgres-data`: Persistent storage for PostgreSQL data.
 
 ## Getting Started
 
@@ -128,7 +135,8 @@ The start script will launch all components in the correct order. Once started, 
 - Rule Manager API: http://localhost:8000
 - Kafka UI: http://localhost:8080
 - OpenSearch Dashboards: http://localhost:5601
-- Grafana: http://localhost:3000
+- Grafana: http://localhost:3000 (admin/admin)
+- PostgreSQL Adminer: http://localhost:8090
 
 To clean up and stop all services:
 ```bash
