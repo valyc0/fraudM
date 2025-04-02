@@ -7,7 +7,10 @@ CREATE TABLE IF NOT EXISTS call_alerts (
     raw_caller_number VARCHAR(20),
     raw_called_number VARCHAR(20),
     timestamp TIMESTAMP,
-    event_time TIMESTAMP
+    event_time TIMESTAMP,
+    carrier_in VARCHAR(50),
+    carrier_out VARCHAR(50),
+    selling_dest VARCHAR(50)
 );
 
 -- Create indexes for common queries

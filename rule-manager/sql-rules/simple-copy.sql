@@ -37,7 +37,10 @@ CREATE TABLE call_alerts (
     raw_caller_number STRING,
     raw_called_number STRING,
     `timestamp` TIMESTAMP(3),
-    event_time TIMESTAMP(3)
+    event_time TIMESTAMP(3),
+    carrier_in STRING,
+    carrier_out STRING,
+    selling_dest STRING
 )WITH (
     'connector' = 'kafka',
     'topic' = 'call-alerts',
@@ -54,5 +57,8 @@ SELECT
     raw_caller_number,
     raw_called_number,
     CAST(event_time AS TIMESTAMP(3)) AS `timestamp`,
-    event_time
+    event_time,
+    carrier_in,
+    carrier_out,
+    selling_dest
 FROM calls_stream;
