@@ -27,6 +27,324 @@
         "type": "grafana-postgresql-datasource",
         "uid": "PCC52D03280B7034C"
       },
+      "description": "Top 5 incoming carriers",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "editorMode": "builder",
+          "format": "table",
+          "rawSql": "SELECT carrier_in, COUNT(*) as count FROM call_alerts WHERE $__timeFilter(event_time) GROUP BY carrier_in ORDER BY count DESC LIMIT 5",
+          "refId": "A",
+          "table": "call_alerts"
+        }
+      ],
+      "title": "Top 5 Carrier In",
+      "type": "barchart",
+      "links": [
+        {
+          "title": "Filter by carrier_in",
+          "url": "",
+          "targetBlank": false,
+          "includeVars": true,
+          "keepTime": true,
+          "asDropdown": false,
+          "icon": "external-link-alt",
+          "tags": ["carrier_in"],
+          "type": "link"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "description": "Top 5 outgoing carriers",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "editorMode": "builder",
+          "format": "table",
+          "rawSql": "SELECT carrier_out, COUNT(*) as count FROM call_alerts WHERE $__timeFilter(event_time) GROUP BY carrier_out ORDER BY count DESC LIMIT 5",
+          "refId": "A",
+          "table": "call_alerts"
+        }
+      ],
+      "title": "Top 5 Carrier Out",
+      "type": "barchart",
+      "links": [
+        {
+          "title": "Filter by carrier_out",
+          "url": "",
+          "targetBlank": false,
+          "includeVars": true,
+          "keepTime": true,
+          "asDropdown": false,
+          "icon": "external-link-alt",
+          "tags": ["carrier_out"],
+          "type": "link"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
+      "description": "Top 5 selling destinations",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "PCC52D03280B7034C"
+          },
+          "editorMode": "builder",
+          "format": "table",
+          "rawSql": "SELECT selling_dest, COUNT(*) as count FROM call_alerts WHERE $__timeFilter(event_time) GROUP BY selling_dest ORDER BY count DESC LIMIT 5",
+          "refId": "A",
+          "table": "call_alerts"
+        }
+      ],
+      "title": "Top 5 Selling Dest",
+      "type": "barchart",
+      "links": [
+        {
+          "title": "Filter by selling_dest",
+          "url": "",
+          "targetBlank": false,
+          "includeVars": true,
+          "keepTime": true,
+          "asDropdown": false,
+          "icon": "external-link-alt",
+          "tags": ["selling_dest"],
+          "type": "link"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "PCC52D03280B7034C"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -57,10 +375,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 12,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 8
       },
       "id": 1,
       "options": {
@@ -84,7 +402,7 @@
           },
           "editorMode": "builder",
           "format": "table",
-          "rawSql": "SELECT * FROM call_alerts LIMIT 50 ",
+          "rawSql": "SELECT * FROM call_alerts WHERE $__timeFilter(event_time) AND (carrier_in = '$carrier_in' OR '$carrier_in' = '') AND (carrier_out = '$carrier_out' OR '$carrier_out' = '') AND (selling_dest = '$selling_dest' OR '$selling_dest' = '') LIMIT 100",
           "refId": "A",
           "sql": {
             "columns": [
@@ -106,20 +424,72 @@
                 "type": "groupBy"
               }
             ],
-            "limit": 50
+            "limit": 100
           },
           "table": "call_alerts"
         }
       ],
-      "title": "Panel Title",
+      "title": "Call Alerts Details",
       "type": "table"
     }
   ],
-  "refresh": "",
+  "refresh": "5s",
   "schemaVersion": 39,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+          "current": {
+            "selected": false,
+            "text": "",
+            "value": ""
+          },
+          "hide": 2,
+          "name": "carrier_in",
+          "query": "",
+          "skipUrlSync": false,
+          "type": "textbox"
+        },
+        {
+          "current": {
+            "selected": false,
+            "text": "",
+            "value": ""
+          },
+          "hide": 2,
+          "name": "carrier_out",
+          "query": "",
+          "skipUrlSync": false,
+          "type": "textbox"
+        },
+        {
+          "current": {
+            "selected": false,
+            "text": "",
+            "value": ""
+          },
+          "hide": 2,
+          "name": "selling_dest",
+          "query": "",
+          "skipUrlSync": false,
+          "type": "textbox"
+        },
+        {
+          "description": null,
+          "error": null,
+          "hide": 0,
+          "includeAll": false,
+          "label": null,
+          "multi": false,
+          "name": "__dashboard",
+          "options": [],
+          "query": "call_alerts",
+          "queryValue": "",
+          "refresh": 1,
+          "skipUrlSync": false,
+          "type": "dashboard"
+        }
+    ]
   },
   "time": {
     "from": "now-1y",
@@ -127,8 +497,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "call_alerts",
+  "title": "Call Alerts Dashboard",
   "uid": "deefde8e-a9e8-4375-924c-aab84d057b0d",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
