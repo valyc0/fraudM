@@ -30,6 +30,7 @@ CREATE TABLE calls_stream (
 );
 
 CREATE TABLE call_alerts (
+    xdrid STRING,
     tenant STRING,
     val_euro DOUBLE,
     duration INT,
@@ -46,6 +47,7 @@ CREATE TABLE call_alerts (
 
 INSERT INTO call_alerts
 SELECT
+    xdrid,
     tenant,
     val_euro,
     CAST(duration AS INT) AS duration,

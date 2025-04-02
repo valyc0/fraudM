@@ -71,6 +71,24 @@ services:
     networks:
       - fraud-network
 
+  # Logstash Kafka to PostgreSQL
+  logstash-postgres:
+    image: docker.elastic.co/logstash/logstash:8.12.1
+    volumes:
+      - ./logstash/pipeline/kafka-to-postgres.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./logstash/jdbc:/usr/share/logstash/jdbc
+    environment:
+      LS_JAVA_OPTS: '-Xmx512m -Xms512m'
+    command: |
+      bash -c '
+      bin/logstash-plugin install logstash-output-jdbc &&
+      /usr/local/bin/docker-entrypoint'
+    depends_on:
+      - kafka
+      - postgres
+    networks:
+      - fraud-network
+
   # Logstash Kafka to OpenSearch
   logstash-output:
     image: opensearchproject/logstash-oss-with-opensearch-output-plugin:7.16.2
@@ -129,10 +147,39 @@ services:
     networks:
       - fraud-network
 
+  # PostgreSQL Service
+  postgres:
+    image: postgres:17.4
+    restart: always
+    shm_size: 128mb
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
+    volumes:
+      - ./postgres/db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - fraud-network
+
+  # Adminer service for PostgreSQL management
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8090:8080"
+    networks:
+      - fraud-network
+    depends_on:
+      - postgres
+
 networks:
   fraud-network:
     external: true
 
 volumes:
-  opensearch-data: null
-  data: null
+  opensearch-data: {}
+  data: {}
+  postgres-data: {}
