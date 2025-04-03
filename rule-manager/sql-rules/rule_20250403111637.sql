@@ -1,3 +1,4 @@
+
 CREATE TABLE calls_stream (
     tenant STRING,
     val_euro DOUBLE,
@@ -24,9 +25,7 @@ CREATE TABLE calls_stream (
     'format' = 'json',
     'json.fail-on-missing-field' = 'false',
     'json.ignore-parse-errors' = 'true',
-    'scan.startup.mode' = 'earliest-offset',
-    'properties.fetch.min.bytes' = '1048576',
-    'properties.fetch.max.wait.ms' = '10000'
+    'scan.startup.mode' = 'earliest-offset'
 );
 
 CREATE TABLE call_alerts (
@@ -51,16 +50,18 @@ CREATE TABLE call_alerts (
 
 INSERT INTO call_alerts
 SELECT
-    xdrid,
+    MAX(xdrid),
     tenant,
-    val_euro,
-    CAST(duration AS INT) AS duration,
+    SUM(val_euro),
+    CAST(SUM(duration) AS INT),
     raw_caller_number,
-    raw_called_number,
-    CAST(event_time AS TIMESTAMP(3)) AS `timestamp`,
-    event_time,
-    carrier_in,
-    carrier_out,
-    selling_dest,
-    'simple_copy_rule' AS rule_name
-FROM calls_stream;
+    'MULTIPLE' AS raw_called_number,
+    CURRENT_TIMESTAMP as `timestamp`,
+    MAX(event_time),
+    MAX(carrier_in),
+    MAX(carrier_out),
+    MAX(selling_dest),
+    'high_frequency_caller' AS rule_name
+FROM calls_stream
+GROUP BY TUMBLE(event_time, INTERVAL '10' MINUTE), tenant, raw_caller_number
+HAVING COUNT(DISTINCT raw_called_number) > 10

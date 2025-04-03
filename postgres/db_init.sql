@@ -10,12 +10,14 @@ CREATE TABLE IF NOT EXISTS call_alerts (
     event_time TIMESTAMP,
     carrier_in VARCHAR(50),
     carrier_out VARCHAR(50),
-    selling_dest VARCHAR(50)
+    selling_dest VARCHAR(50),
+    rule_name VARCHAR(100) NOT NULL
 );
 
 -- Create indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_call_alerts_timestamp ON call_alerts(timestamp);
 CREATE INDEX IF NOT EXISTS idx_call_alerts_tenant ON call_alerts(tenant);
+CREATE INDEX IF NOT EXISTS idx_call_alerts_rule_name ON call_alerts(rule_name);
 
 -- Grant privileges
 GRANT ALL PRIVILEGES ON TABLE call_alerts TO postgres;

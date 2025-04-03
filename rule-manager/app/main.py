@@ -2,7 +2,8 @@
 
 # PROMPT ##############
 # Esempio di utilizzo:
-# curl -X POST http://localhost:5001/generate_rule -H "Content-Type: application/json" -d '{"rule": "caller che chiama piu di 10 called in 10 min"}'
+# curl -X POST http://localhost:5001/generate_rule -H "Content-Type: application/json" \
+#   -d '{"rule": "caller che chiama piu di 10 called in 10 min", "rule_name": "high_frequency_caller"}'
 
 
 from flask import Flask, request, jsonify
@@ -119,11 +120,12 @@ CREATE TABLE call_alerts (
     duration INT,
     raw_caller_number STRING,
     raw_called_number STRING,
-    timestamp TIMESTAMP(3),
+    `timestamp` TIMESTAMP(3),
     event_time TIMESTAMP(3),
     carrier_in STRING,
     carrier_out STRING,
-    selling_dest STRING
+    selling_dest STRING,
+    rule_name STRING
 ) WITH (
     'connector' = 'kafka',
     'topic' = 'call-alerts',
@@ -136,6 +138,23 @@ LINEE GUIDA:
 2. Implementa le condizioni di frode usando HAVING o WHERE secondo necessità
 3. Usa event_time per le operazioni temporali
 4. Includi sempre INSERT INTO call_alerts per salvare le anomalie rilevate
+5. Includi SEMPRE il nome della regola nel campo rule_name dell'INSERT INTO call_alerts
+   Esempio:
+   INSERT INTO call_alerts
+   SELECT
+     xdrid,
+     tenant,
+     val_euro,
+     CAST(duration AS INT),
+     raw_caller_number,
+     raw_called_number,
+     CURRENT_TIMESTAMP as timestamp,
+     event_time,
+     carrier_in,
+     carrier_out,
+     selling_dest,
+     'nome_regola' as rule_name  -- Usa il nome regola fornito
+   FROM ...
 
 Rispondi solo con lo script SQL Flink, senza testo aggiuntivo.
 """
@@ -143,15 +162,20 @@ Rispondi solo con lo script SQL Flink, senza testo aggiuntivo.
 @app.route("/generate_rule", methods=["POST"])
 def generate_rule():
     try:
-        # Ottieni il testo della richiesta JSON
+        # Ottieni i parametri dalla richiesta JSON
         user_request = request.json.get("rule", "")
+        rule_name = request.json.get("rule_name", "")
+        
         if not user_request:
             return jsonify({"error": "Missing 'rule' parameter"}), 400
+        if not rule_name:
+            return jsonify({"error": "Missing 'rule_name' parameter"}), 400
+            
+        # Aggiorna il contesto con il nome della regola
+        context_with_name = f"{CONTEXT}\n\nRichiesta: {user_request}\nNome Regola: {rule_name}"
 
         # Chiamata a Gemini
-        response = genai.GenerativeModel('gemini-2.0-flash').generate_content(
-            f"{CONTEXT}\n\nRichiesta: {user_request}"
-        )
+        response = genai.GenerativeModel('gemini-2.0-flash').generate_content(context_with_name)
 
         # Pulisci il codice generato e rimuovi eventuali delimitatori markdown
         generated_code = response.text.strip().replace("```sql", "").replace("```", "")

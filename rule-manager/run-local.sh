@@ -71,7 +71,11 @@ echo
 echo "Example usage:"
 echo "curl -X POST http://localhost:5001/generate_rule \\"
 echo "     -H \"Content-Type: application/json\" \\"
-echo "     -d '{\"rule\": \"caller che chiama piu di 10 called in 10 min\"}'"
+echo "     -d '{\"rule\": \"caller che chiama piu di 10 called in 10 min\", \"rule_name\": \"high_frequency_caller\"}'"
+echo
+echo "Parameters:"
+echo "- rule: description of the rule to generate"
+echo "- rule_name: unique identifier for the rule (required)"
 echo
 
 # Execute the Flask application
