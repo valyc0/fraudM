@@ -85,32 +85,36 @@ Quando ricevi una richiesta, devi restituire SOLO lo script SQL Flink senza spie
 IMPORTANTE:
 - Lo script deve sempre partire con la definizione delle tabelle:
 CREATE TABLE calls_stream (
-    tenant STRING,
-    val_euro DOUBLE,
-    duration BIGINT,
-    economicUnitValue DOUBLE,
-    other_party_country STRING,
-    routing_dest STRING,
-    service_type__desc STRING,
-    op35 STRING,
-    carrier_in STRING,
-    carrier_out STRING,
-    selling_dest STRING,
-    raw_caller_number STRING,
-    raw_called_number STRING,
-    paese_destinazione STRING,
-    event_time TIMESTAMP(3) METADATA FROM 'timestamp',
-    xdrid STRING,
-    WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND
+    `event_type` STRING,
+    `kafka_timestamp` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp',
+    `carrier_out` STRING,
+    `@timestamp` TIMESTAMP_LTZ(3),
+    `tenant` STRING,
+    `economicUnitValue` DOUBLE,
+    `selling_dest` STRING,
+    `paese_destinazione` STRING,
+    `event_timestamp` TIMESTAMP_LTZ(3),
+    `routing_dest` STRING,
+    `duration` INT,
+    `val_euro` DOUBLE,
+    `raw_called_number` STRING,
+    `raw_caller_number` STRING,
+    `carrier_in` STRING,
+    `xdrid` STRING,
+    `other_party_country` STRING,
+    WATERMARK FOR `event_timestamp` AS `event_timestamp` - INTERVAL '5' SECOND
 ) WITH (
     'connector' = 'kafka',
     'topic' = 'call-data-raw',
     'properties.bootstrap.servers' = 'kafka:29092',
     'properties.group.id' = 'flink-rule-group',
     'format' = 'json',
+    'json.timestamp-format.standard' = 'ISO-8601',
     'json.fail-on-missing-field' = 'false',
     'json.ignore-parse-errors' = 'true',
-    'scan.startup.mode' = 'earliest-offset'
+    'scan.startup.mode' = 'earliest-offset',
+    'properties.fetch.min.bytes' = '1048576',
+    'properties.fetch.max.wait.ms' = '10000'
 );
 
 CREATE TABLE call_alerts (
@@ -120,8 +124,8 @@ CREATE TABLE call_alerts (
     duration INT,
     raw_caller_number STRING,
     raw_called_number STRING,
-    `timestamp` TIMESTAMP(3),
-    event_time TIMESTAMP(3),
+    `timestamp` TIMESTAMP_LTZ(3),
+    event_time TIMESTAMP_LTZ(3),
     carrier_in STRING,
     carrier_out STRING,
     selling_dest STRING,
@@ -130,13 +134,14 @@ CREATE TABLE call_alerts (
     'connector' = 'kafka',
     'topic' = 'call-alerts',
     'properties.bootstrap.servers' = 'kafka:29092',
-    'format' = 'json'
+    'format' = 'json',
+    'json.timestamp-format.standard' = 'ISO-8601'
 );
 
 LINEE GUIDA:
 1. Usa GROUP BY e finestre temporali (TUMBLE o HOP) per aggregare i dati nel periodo specificato
 2. Implementa le condizioni di frode usando HAVING o WHERE secondo necessità
-3. Usa event_time per le operazioni temporali
+3. Usa `event_timestamp` per le operazioni temporali (dalla tabella `calls_stream`)
 4. Includi sempre INSERT INTO call_alerts per salvare le anomalie rilevate
 5. Includi SEMPRE il nome della regola nel campo rule_name dell'INSERT INTO call_alerts
    Esempio:
@@ -145,11 +150,11 @@ LINEE GUIDA:
      xdrid,
      tenant,
      val_euro,
-     CAST(duration AS INT),
+     duration, -- Assicurati che il tipo sia corretto o casta se necessario
      raw_caller_number,
      raw_called_number,
-     CURRENT_TIMESTAMP as timestamp,
-     event_time,
+     kafka_timestamp AS `timestamp`, -- Usa kafka_timestamp da calls_stream
+     event_timestamp AS event_time, -- Usa event_timestamp da calls_stream
      carrier_in,
      carrier_out,
      selling_dest,
