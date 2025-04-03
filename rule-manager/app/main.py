@@ -1,173 +1,185 @@
-import logging
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
-from datetime import datetime
-import uuid
+# pip install flask google-generativeai
+
+# PROMPT ##############
+# Esempio di utilizzo:
+# curl -X POST http://localhost:5001/generate_rule -H "Content-Type: application/json" -d '{"rule": "caller che chiama piu di 10 called in 10 min"}'
+
+
+from flask import Flask, request, jsonify
+import google.generativeai as genai
 import os
+import datetime
+import logging
+from logging.handlers import RotatingFileHandler
 
-from .services.ai_service import AIService
-from .services.opensearch_service import OpenSearchService
-from .models import Rule, RuleCreate, RuleUpdate
+# Determina la directory base e imposta permessi
+def setup_directory(dir_path):
+    try:
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        # Se la directory esiste ma non è scrivibile, prova a cambiare i permessi
+        elif not os.access(dir_path, os.W_OK):
+            os.system(f"sudo chown -R gitpod:gitpod {dir_path}")
+    except Exception as e:
+        print(f"Warning: Could not set up directory {dir_path}: {str(e)}")
+        return False
+    return True
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Determina la directory base (container o locale)
+BASE_DIR = os.getenv('APP_DIR', '/app')
+if not os.access(BASE_DIR, os.W_OK):
+    # Fallback to local directory if container directory is not writable
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
-app = FastAPI(title="Rule Manager API")
+# Configurazione directory
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+SQL_DIR = os.path.join(BASE_DIR, 'sql-rules')
 
-# Initialize services
-ai_service = None
-opensearch_service = None
+# Crea e configura le directory necessarie
+for directory in [LOG_DIR, SQL_DIR]:
+    if not setup_directory(directory):
+        logger.warning(f"Could not set up directory {directory} - may have permission issues")
+    else:
+        logger.info(f"Successfully set up directory: {directory}")
 
-@app.on_event("startup")
-async def startup_event():
-    global ai_service, opensearch_service
-    
-    # Verify GEMINI_API_KEY is set
-    if not os.getenv("GEMINI_API_KEY"):
-        raise ValueError("GEMINI_API_KEY environment variable is not set")
-    
-    # Initialize services
+# Configurazione logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Handler per la rotazione dei file di log
+log_file = os.path.join(LOG_DIR, 'rule_generator.log')
+handler = RotatingFileHandler(log_file, maxBytes=10000000, backupCount=5)
+handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
+
+# Handler per output su console
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(console_handler)
+
+# Log directories in use
+logger.info(f"Using base directory: {BASE_DIR}")
+logger.info(f"Logs directory: {LOG_DIR}")
+logger.info(f"SQL rules directory: {SQL_DIR}")
+
+logger.info(f"Logging configurato in {LOG_DIR}")
+
+app = Flask(__name__)
+
+# Imposta la chiave API di Gemini da variabile d'ambiente
+GENAI_API_KEY = os.getenv('GEMINI_API_KEY')
+if not GENAI_API_KEY:
+    raise ValueError("GEMINI_API_KEY environment variable is not set")
+genai.configure(api_key=GENAI_API_KEY)
+
+# Contesto SQL per Gemini
+CONTEXT = """
+Sei un esperto di Apache Flink SQL specializzato nella generazione di query per il rilevamento frodi telefoniche in tempo reale.
+Quando ricevi una richiesta, devi restituire SOLO lo script SQL Flink senza spiegazioni o testo aggiuntivo.
+
+IMPORTANTE:
+- Lo script deve sempre partire con la definizione delle tabelle:
+CREATE TABLE calls_stream (
+    tenant STRING,
+    val_euro DOUBLE,
+    duration BIGINT,
+    economicUnitValue DOUBLE,
+    other_party_country STRING,
+    routing_dest STRING,
+    service_type__desc STRING,
+    op35 STRING,
+    carrier_in STRING,
+    carrier_out STRING,
+    selling_dest STRING,
+    raw_caller_number STRING,
+    raw_called_number STRING,
+    paese_destinazione STRING,
+    event_time TIMESTAMP(3) METADATA FROM 'timestamp',
+    xdrid STRING,
+    WATERMARK FOR event_time AS event_time - INTERVAL '5' SECOND
+) WITH (
+    'connector' = 'kafka',
+    'topic' = 'call-data-raw',
+    'properties.bootstrap.servers' = 'kafka:29092',
+    'properties.group.id' = 'flink-rule-group',
+    'format' = 'json',
+    'json.fail-on-missing-field' = 'false',
+    'json.ignore-parse-errors' = 'true',
+    'scan.startup.mode' = 'earliest-offset'
+);
+
+CREATE TABLE call_alerts (
+    xdrid STRING,
+    tenant STRING,
+    val_euro DOUBLE,
+    duration INT,
+    raw_caller_number STRING,
+    raw_called_number STRING,
+    timestamp TIMESTAMP(3),
+    event_time TIMESTAMP(3),
+    carrier_in STRING,
+    carrier_out STRING,
+    selling_dest STRING
+) WITH (
+    'connector' = 'kafka',
+    'topic' = 'call-alerts',
+    'properties.bootstrap.servers' = 'kafka:29092',
+    'format' = 'json'
+);
+
+LINEE GUIDA:
+1. Usa GROUP BY e finestre temporali (TUMBLE o HOP) per aggregare i dati nel periodo specificato
+2. Implementa le condizioni di frode usando HAVING o WHERE secondo necessità
+3. Usa event_time per le operazioni temporali
+4. Includi sempre INSERT INTO call_alerts per salvare le anomalie rilevate
+
+Rispondi solo con lo script SQL Flink, senza testo aggiuntivo.
+"""
+
+@app.route("/generate_rule", methods=["POST"])
+def generate_rule():
     try:
-        ai_service = AIService()
-        opensearch_service = OpenSearchService()
-        logger.info("Services initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize services: {str(e)}")
-        raise
+        # Ottieni il testo della richiesta JSON
+        user_request = request.json.get("rule", "")
+        if not user_request:
+            return jsonify({"error": "Missing 'rule' parameter"}), 400
 
-# Dependency to get services
-async def get_services():
-    if not ai_service or not opensearch_service:
-        raise HTTPException(status_code=503, detail="Services not initialized")
-    return {"ai": ai_service, "opensearch": opensearch_service}
-
-@app.get("/health")
-async def health_check(services: Dict = Depends(get_services)):
-    """Check the health of all services"""
-    try:
-        ai_health = bool(services["ai"].api_key)
-        opensearch_health = await services["opensearch"].check_health()
-        
-        return {
-            "status": "healthy" if ai_health and opensearch_health else "unhealthy",
-            "services": {
-                "ai_service": "healthy" if ai_health else "unhealthy",
-                "opensearch": "healthy" if opensearch_health else "unhealthy"
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
-
-@app.post("/rules/create")
-async def create_rule(rule_create: RuleCreate, services: Dict = Depends(get_services)):
-    try:
-        logger.info(f"Creating new rule with description: {rule_create.description}")
-        
-        # Generate Scala code using AI
-        scala_code = services["ai"].generate_scala_code(rule_create.description)
-        
-        # Create rule document
-        rule = Rule(
-            rule_id=str(uuid.uuid4()),
-            name=rule_create.name if rule_create.name else f"Rule_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            natural_language=rule_create.description,
-            scala_code=scala_code,
-            status="created",
-            created_at=datetime.now(),
-            version=1,
-            is_active=False
+        # Chiamata a Gemini
+        response = genai.GenerativeModel('gemini-2.0-flash').generate_content(
+            f"{CONTEXT}\n\nRichiesta: {user_request}"
         )
-        
-        # Store in OpenSearch
-        stored_rule = await services["opensearch"].store_rule(rule)
-        logger.info(f"Rule created successfully with ID: {stored_rule.rule_id}")
-        
-        return stored_rule
-        
-    except Exception as e:
-        logger.error(f"Error creating rule: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/rules/{rule_id}")
-async def get_rule(rule_id: str, services: Dict = Depends(get_services)):
-    try:
-        rule = await services["opensearch"].get_rule(rule_id)
-        if not rule:
-            raise HTTPException(status_code=404, detail="Rule not found")
-        return rule
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving rule {rule_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Pulisci il codice generato e rimuovi eventuali delimitatori markdown
+        generated_code = response.text.strip().replace("```sql", "").replace("```", "")
 
-@app.get("/rules")
-async def list_rules(services: Dict = Depends(get_services)):
-    try:
-        rules = await services["opensearch"].list_rules()
-        return rules
-    except Exception as e:
-        logger.error(f"Error listing rules: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Genera un nome file basato sul timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"rule_{timestamp}.sql"
 
-@app.put("/rules/{rule_id}")
-async def update_rule(rule_id: str, rule_update: RuleUpdate, services: Dict = Depends(get_services)):
-    try:
-        # Generate new Scala code if description is updated
-        scala_code = None
-        if rule_update.description:
-            scala_code = await services["ai"].generate_scala_code(rule_update.description)
+        # Salva lo script SQL nella directory sql-rules
+        filepath = os.path.join(SQL_DIR, filename)
+        with open(filepath, "w") as f:
+            f.write(generated_code)
         
-        rule = await services["opensearch"].update_rule(rule_id, rule_update, scala_code)
-        if not rule:
-            raise HTTPException(status_code=404, detail="Rule not found")
-        
-        logger.info(f"Rule {rule_id} updated successfully")
-        return rule
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating rule {rule_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.info(f"Script SQL salvato in: {filepath}")
 
-@app.delete("/rules/{rule_id}")
-async def delete_rule(rule_id: str, services: Dict = Depends(get_services)):
-    try:
-        success = await services["opensearch"].delete_rule(rule_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Rule not found")
-        
-        logger.info(f"Rule {rule_id} deleted successfully")
-        return {"message": "Rule deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting rule {rule_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return jsonify({
+            "status": "Script SQL generato con successo",
+            "filename": filename,
+            "script": generated_code
+        })
 
-@app.post("/rules/{rule_id}/deploy")
-async def deploy_rule(rule_id: str, services: Dict = Depends(get_services)):
-    try:
-        rule = await services["opensearch"].get_rule(rule_id)
-        if not rule:
-            raise HTTPException(status_code=404, detail="Rule not found")
-        
-        # TODO: Implement Flink deployment logic
-        # This will be added in a separate service
-        
-        # Update rule status
-        rule = await services["opensearch"].update_rule_status(rule_id, "deployed")
-        logger.info(f"Rule {rule_id} marked as deployed")
-        return rule
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error deploying rule {rule_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error generating SQL rule: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": "Failed to generate SQL rule",
+            "details": str(e),
+            "request": user_request
+        }), 500
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5001)
+    app.run(host="0.0.0.0", port=5001)
