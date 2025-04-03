@@ -31,39 +31,23 @@ CREATE TABLE calls_stream (
     'properties.fetch.max.wait.ms' = '10000'
 );
 
-CREATE TABLE call_alerts (
-    xdrid STRING,
-    tenant STRING,
-    val_euro DOUBLE,
-    duration INT,
-    raw_caller_number STRING,
-    raw_called_number STRING,
-    `timestamp` TIMESTAMP_LTZ(3),
-    event_time TIMESTAMP_LTZ(3),
-    carrier_in STRING,
-    carrier_out STRING,
-    selling_dest STRING,
-    rule_name STRING
-) WITH (
-    'connector' = 'kafka',
-    'topic' = 'call-alerts',
-    'properties.bootstrap.servers' = 'kafka:29092',
-    'format' = 'json',
-    'json.timestamp-format.standard' = 'ISO-8601'
-);
-
-INSERT INTO call_alerts
+-- Example query to extract all fields with proper timestamps
 SELECT
-    xdrid,
-    tenant,
-    val_euro,
-    duration,
-    raw_caller_number,
-    raw_called_number,
-    kafka_timestamp AS `timestamp`,
-    event_timestamp AS event_time,
-    carrier_in,
+    event_type,
+    kafka_timestamp,
     carrier_out,
+    @timestamp,
+    tenant,
+    economicUnitValue,
     selling_dest,
-    'simple_copy_rule' AS rule_name
+    paese_destinazione,
+    event_timestamp,
+    routing_dest,
+    duration,
+    val_euro,
+    raw_called_number,
+    raw_caller_number,
+    carrier_in,
+    xdrid,
+    other_party_country
 FROM calls_stream;
