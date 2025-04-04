@@ -9,8 +9,9 @@ services:
       - "5001:5001"
     volumes:
       - .:/app
+    env_file:
+      - ../.env
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENSEARCH_HOST=opensearch
       - OPENSEARCH_PORT=9200
       - OPENSEARCH_USER=${OPENSEARCH_USER:-admin}
